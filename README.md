@@ -27,4 +27,4 @@ The ClickOnce dialog shall open and the buttons will be pressed automatically. T
 Upon completion both the Internet Explorer and application process will be stopped.
 
 # Demonstration
-![Alt Text](https://github.com/scara1701/ClickOnce-loader-for-Citrix-XenApp-XenDesktop/blob/master/Screenshots/demo.gif)
+![Alt Text](https://github.com/scara1701/ClickOnce-loader-for-Citrix-XenApp-and-XenDesktop/blob/master/Screenshots/demo.gif)
