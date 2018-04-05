@@ -101,9 +101,12 @@ namespace ClickOnceLoaderForCitrix.Core
 
         #region fields
         //all values need to be true before program ends
-        public static bool InstallReached = false;
-        public static bool ErrorReached = false;
-        public static int IECloseAttempt = 0;
+        static bool InstallReached = false;
+        static bool ErrorReached = false;
+        static int IECloseAttempt = 0;
+        static Process IE;
+        static int IEHandle = 0;
+
         #endregion
 
         #region methods
@@ -139,20 +142,19 @@ namespace ClickOnceLoaderForCitrix.Core
         /// <param name="emptyInternetExplorerTitle">Handle mentioned for an empty Internet Explorer page. This is the result after navigation to clickonce location</param>
         /// <param name="timeout">Timeout for all dialogs, time starts at same moment for all dialogs</param>
         /// <returns></returns>
-        public static async Task<bool> RunKnowliahCornerTCStarter(
+        public static async void RunKnowliahCornerTCStarter(
             string path,
             string installDialogHandle,
             string errorDialogHandle,
             string emptyInternetExplorerTitle,
             int timeout)
         {
-            //start a new instance of internet explorer
-            InternetExplorer ie = new InternetExplorer();
-            IWebBrowserApp wb = (IWebBrowserApp)ie;
-            //navigate...
-            wb.Navigate(path);
-            //and minimize
-            ShowWindow(wb.HWND, SW_MINIMIZE);
+            IE = new Process();
+            IE.StartInfo.FileName = "iexplore";
+            IE.StartInfo.Arguments = @path;
+            IE.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            IE.Start();
+
             //detect all subsequent dialogs
             DetectDialog(installDialogHandle, KEY_I, timeout, Dialogtype.Install);
             DetectDialog(errorDialogHandle, KEY_O, timeout, Dialogtype.Error);
@@ -160,11 +162,10 @@ namespace ClickOnceLoaderForCitrix.Core
             //wait for all dialogs to complete or timeout
             if (await AllDialogsReached())
             {
-                await Task.Delay(1000);
                 //try to close internet explorer window
                 DetectIexploreWindow(emptyInternetExplorerTitle);
             }
-            return true;
+            StopProgram();
         }
 
         /// <summary>
@@ -178,6 +179,7 @@ namespace ClickOnceLoaderForCitrix.Core
                 Debug.WriteLine("Not all dialogs reached or timedout yet...");
                 await Task.Delay(500);
             }
+            Debug.WriteLine("All dialogs completed");
             return true;
         }
 
@@ -191,24 +193,27 @@ namespace ClickOnceLoaderForCitrix.Core
             IntPtr hwndChild = IntPtr.Zero;
 
             //Get handle for the ClickOnce Window - name in titlebar
-            hwnd = FindWindow(null, titlebartext);
-
-            //Close window
-            if (hwnd != 0)
+            //hwnd = FindWindow(null, titlebartext);
+            if (!IE.HasExited)
             {
-                IECloseAttempt++;
-                SendMessage(hwnd, WM_CLOSE, 0, IntPtr.Zero);
-                try
+                hwnd = IEHandle;
+                //Close window
+                if (hwnd != 0)
                 {
-                    //Max 10 retries to close Internet Explorer
-                    if (IECloseAttempt < 10)
+                    IECloseAttempt++;
+                    SendMessage(hwnd, WM_CLOSE, 0, IntPtr.Zero);
+                    try
                     {
-                        DetectIexploreWindow(titlebartext);
+                        //Max 10 retries to close Internet Explorer
+                        if (IECloseAttempt < 10)
+                        {
+                            DetectIexploreWindow(titlebartext);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex.Message);
+                    }
                 }
             }
         }
@@ -252,7 +257,6 @@ namespace ClickOnceLoaderForCitrix.Core
                     }
                     await Task.Delay(500);
                 }
-
             }
             finally
             {
@@ -270,6 +274,14 @@ namespace ClickOnceLoaderForCitrix.Core
                 }
             }
 
+        }
+
+        /// <summary>
+        /// End the program
+        /// </summary>
+        public static void StopProgram()
+        {
+            System.Environment.Exit(0);
         }
         #endregion
     }
